@@ -1,5 +1,6 @@
 #include "application.h"
 
+#include <random>
 #include <iostream>
 #include <cassert>
 #include <cstdio>
@@ -18,7 +19,47 @@
 
 using namespace std;
 enum { NONE, AMBIENT, DIFFUSE, SPECULAR, NUM_MODES };
+const float g = 9.8f;
 
+struct Particle{
+	float mass, d;
+	vec3 pos, velocity, force, color;
+	float gm = g*mass;	
+    vec3 gravity = {0, -gm, 0};
+	
+	//update v and x with an Forward Euler Step [part 1.1]
+	void Euler_Step(float h){
+		force += gravity;
+		velocity += (h*force)/mass;
+		pos += velocity*h;
+	}
+	//reset force to 0 vector;
+	void Reset_Forces(){
+		force = {0, 0, 0};
+	}
+	//reflect particle on ground and apply damping and restituion [part 1.3]
+	void Handle_Collision(float damping, float coeff_resititution){
+		if((this->pos[1] < 0) && (this->velocity[1] < 0)){
+			
+		}
+	}
+
+};
+default_random_engine dre;
+uniform_real_distribution<float> r(0.0, 1.0);
+uniform_real_distribution<float> r1(1.0,10.0);
+vector<Particle> pList;
+
+void Add_Particles(unsigned int n){ // generates n random particles, and appends to the particle vector
+	for(unsigned int i = 0; i < n; i++){
+		Particle temp;
+		temp.mass = 1;
+		temp.pos = {r(dre), 0.05, r(dre)};
+		temp.velocity = {10*temp.pos[0], r1(dre), 10*temp.pos[2]};
+		temp.color = {0, 255, 0};
+		pList.push_back(temp);
+	}
+}
 void draw_grid(int dim);
 void draw_obj(obj *o, const gl_image_texture_map& textures);
 
@@ -129,19 +170,29 @@ void application::draw_event()
         //
         // UPDATE THE COLOR OF THE PARTICLE DYNAMICALLY
         //
+		Add_Particles(10);
+		for(size_t i = 0; i < pList.size(); i++){
+			pList[i].Reset_Forces();
+			pList[i].Euler_Step(2.0);
+			pList[i].Handle_Collisions(1.0,1.0);
+			glColor3f(0,255,0);
+		}
+			
     }
 
     glLineWidth(2.0);
     glEnable(GL_COLOR_MATERIAL);
     glBegin(GL_LINES);
-        //
-        //
         // DRAW YOUR PARTICLE USING GL_LINES HERE
         //
         // glVertex3f(...) endpoint 1
         // glVertex3f(...) endpoint 2
-        //
-        //
+		for(size_t i = 0; i < pList.size(); i++){
+			glVertex3f(pList[i].pos[0], pList[i].pos[1], pList[i].pos[2]);
+			glVertex3f(pList[i].pos[0] - 0.04*(pList[i].velocity[0]),
+					   pList[i].pos[1] - 0.04*(pList[i].velocity[1]),
+					   pList[i].pos[2] - 0.04*(pList[i].velocity[2]));
+		}
     glEnd();
 
     // draw the volcano
