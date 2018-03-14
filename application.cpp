@@ -22,13 +22,14 @@ enum { NONE, AMBIENT, DIFFUSE, SPECULAR, NUM_MODES };
 const float g = 9.8f;
 
 struct Particle{
-	float mass, d;
+	float mass, d = 0.0;
 	vec3 pos, velocity, force, color;
 	float gm = g*mass;	
     vec3 gravity = {0, -gm, 0};
 	
 	//update v and x with an Forward Euler Step [part 1.1]
 	void Euler_Step(float h){
+		d += h;
 		force += gravity;
 		velocity += (h*force)/mass;
 		pos += velocity*h;
@@ -39,14 +40,20 @@ struct Particle{
 	}
 	//reflect particle on ground and apply damping and restituion [part 1.3]
 	void Handle_Collision(float damping, float coeff_resititution){
-		if((this->pos[1] < 0) && (this->velocity[1] < 0)){
+		if(this->pos[1] < 0) {
+			this->pos[1] = 0;
+			if(this->velocity[1] < 0){
+				this->velocity[1] = -1.0 * coeff_resititution * velocity[1];
+				this->velocity[2] = damping * velocity[2];
+				this->velocity[1] = damping * velocity[1];
+			}
 			
 		}
 	}
 
 };
 default_random_engine dre;
-uniform_real_distribution<float> r(0.0, 1.0);
+uniform_real_distribution<float> r(-0.20, 0.2);
 uniform_real_distribution<float> r1(1.0,10.0);
 vector<Particle> pList;
 
@@ -54,6 +61,7 @@ void Add_Particles(unsigned int n){ // generates n random particles, and appends
 	for(unsigned int i = 0; i < n; i++){
 		Particle temp;
 		temp.mass = 1;
+		temp.d = 0.0;
 		temp.pos = {r(dre), 0.05, r(dre)};
 		temp.velocity = {10*temp.pos[0], r1(dre), 10*temp.pos[2]};
 		temp.color = {0, 255, 0};
@@ -173,8 +181,9 @@ void application::draw_event()
 		Add_Particles(10);
 		for(size_t i = 0; i < pList.size(); i++){
 			pList[i].Reset_Forces();
-			pList[i].Euler_Step(2.0);
-			pList[i].Handle_Collisions(1.0,1.0);
+			pList[i].Euler_Step(h);
+			pList[i].force = pList[i].force + vec3(0, -1.0 * pList[i].mass * 9.81, 0);
+			pList[i].Handle_Collision(0.5,0.5);
 			glColor3f(0,255,0);
 		}
 			
