@@ -20,6 +20,23 @@
 using namespace std;
 enum { NONE, AMBIENT, DIFFUSE, SPECULAR, NUM_MODES };
 const float g = 9.8f;
+vec3 Interpolate(vec3 x, vec3 y, float u){
+	return x * (1 - u) + y * u;
+}
+
+vec3 Get_Particle_Color(float d)
+{
+    if(d < .1)
+        return vec3(1, 1, 0);
+    else if(d < 1.5)
+        return Interpolate(vec3(1, 1, 0), vec3(1, 0, 0), (d - .1) / 1.4);
+    else if(d < 2)
+	return vec3(1, 0, 0);
+    else if(d < 3)
+        return Interpolate(vec3(1, 0, 0), vec3(.5, .5, .5), (d - 2) / 1);
+    else
+	return vec3(.5, .5, .5);
+}
 
 struct Particle{
 	float mass, d = 0.0;
@@ -30,9 +47,9 @@ struct Particle{
 	//update v and x with an Forward Euler Step [part 1.1]
 	void Euler_Step(float h){
 		d += h;
-		force += gravity;
 		velocity += (h*force)/mass;
 		pos += velocity*h;
+		color = Get_Particle_Color(d);
 	}
 	//reset force to 0 vector;
 	void Reset_Forces(){
@@ -45,7 +62,7 @@ struct Particle{
 			if(this->velocity[1] < 0){
 				this->velocity[1] = -1.0 * coeff_resititution * velocity[1];
 				this->velocity[2] = damping * velocity[2];
-				this->velocity[1] = damping * velocity[1];
+				this->velocity[0] = damping * velocity[0];
 			}
 			
 		}
@@ -64,7 +81,7 @@ void Add_Particles(unsigned int n){ // generates n random particles, and appends
 		temp.d = 0.0;
 		temp.pos = {r(dre), 0.05, r(dre)};
 		temp.velocity = {10*temp.pos[0], r1(dre), 10*temp.pos[2]};
-		temp.color = {0, 255, 0};
+		temp.color = {0, 1, 1};
 		pList.push_back(temp);
 	}
 }
@@ -157,6 +174,7 @@ void application::init_event()
             }
         }
     }
+	Add_Particles(10);
 }
 
 // triggered each time the application needs to redraw
@@ -178,13 +196,12 @@ void application::draw_event()
         //
         // UPDATE THE COLOR OF THE PARTICLE DYNAMICALLY
         //
-		Add_Particles(10);
+		Add_Particles(20);
 		for(size_t i = 0; i < pList.size(); i++){
 			pList[i].Reset_Forces();
-			pList[i].Euler_Step(h);
 			pList[i].force = pList[i].force + vec3(0, -1.0 * pList[i].mass * 9.81, 0);
+			pList[i].Euler_Step(h);
 			pList[i].Handle_Collision(0.5,0.5);
-			glColor3f(0,255,0);
 		}
 			
     }
@@ -197,10 +214,10 @@ void application::draw_event()
         // glVertex3f(...) endpoint 1
         // glVertex3f(...) endpoint 2
 		for(size_t i = 0; i < pList.size(); i++){
-			glVertex3f(pList[i].pos[0], pList[i].pos[1], pList[i].pos[2]);
-			glVertex3f(pList[i].pos[0] - 0.04*(pList[i].velocity[0]),
-					   pList[i].pos[1] - 0.04*(pList[i].velocity[1]),
-					   pList[i].pos[2] - 0.04*(pList[i].velocity[2]));
+		    glColor3f(pList[i].color[0], pList[i].color[1], pList[i].color[2]);
+                    glVertex3f(pList[i].pos[0], pList[i].pos[1], pList[i].pos[2]);
+        	    vec3 endPos = pList[i].pos + static_cast <float>(.04) * pList[i].velocity;
+	            glVertex3f(endPos[0], endPos[1], endPos[2]);
 		}
     glEnd();
 
